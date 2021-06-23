@@ -1,0 +1,962 @@
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: gameservers.carrier.ocgi.dev
+spec:
+  group: carrier.ocgi.dev
+  version: v1alpha1
+  scope: Namespaced
+  additionalPrinterColumns:
+    - JSONPath: .status.state
+      name: State
+      type: string
+    - JSONPath: .status.address
+      name: Address
+      type: string
+    - JSONPath: .status.loadBalancerStatus.ingress[*].ports[*].externalPort
+      name: Port
+      type: string
+    - JSONPath: .status.loadBalancerStatus.ingress[*].ports[*].externalPortRange
+      name: PortRange
+      type: string
+    - JSONPath: .status.nodeName
+      name: Node
+      type: string
+    - JSONPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+  names:
+    kind: GameServer
+    plural: gameservers
+    shortNames:
+      - gs
+    singular: gameserver
+  validation:
+    openAPIV3Schema:
+      required:
+        - spec
+      properties:
+        spec:
+          required:
+            - template
+          properties:
+            template:
+              type: object
+              required:
+                - spec
+              properties:
+                spec:
+                  type: object
+                  required:
+                    - containers
+                  properties:
+                    containers:
+                      type: array
+                      minItems: 1
+                      items:
+                        type: object
+                        required:
+                          - image
+                        properties:
+                          name:
+                            type: string
+                            minLength: 0
+                            maxLength: 63
+                            pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+                          image:
+                            type: string
+                            minLength: 1
+            ports:
+              type: array
+              minItems: 1
+              items:
+                type: object
+                properties:
+                  portPolicy:
+                    type: string
+                    enum:
+                      - Dynamic
+                      - Static
+                      - LoadBalancer
+                  protocol:
+                    type: string
+                    enum:
+                      - UDP
+                      - TCP
+                      - TCPUDP
+                  containerPort:
+                    type: integer
+                    minimum: 1
+                    maximum: 65535
+                  containerPortRange:
+                    type: object
+                    properties:
+                      minPort:
+                        type: integer
+                        minimum: 1
+                        maximum: 65535
+                      maxPort:
+                        type: integer
+                        minimum: 1
+                        maximum: 65535
+                  hostPort:
+                    type: integer
+                    minimum: 1
+                    maximum: 65535
+            scheduling:
+              type: string
+              enum:
+                - Default
+                - MostAllocated
+                - LeastAllocated
+  subresources:
+    # status enables the status subresource.
+    status: {}
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: gameserversets.carrier.ocgi.dev
+spec:
+  additionalPrinterColumns:
+    - JSONPath: .spec.scheduling
+      name: Scheduling
+      type: string
+    - JSONPath: .spec.replicas
+      name: Desired
+      type: integer
+    - JSONPath: .status.replicas
+      name: Current
+      type: integer
+    - JSONPath: .status.readyReplicas
+      name: Ready
+      type: integer
+    - JSONPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+  group: carrier.ocgi.dev
+  version: v1alpha1
+  scope: Namespaced
+  names:
+    kind: GameServerSet
+    plural: gameserversets
+    shortNames:
+      - gss
+      - gsset
+    singular: gameserverset
+  validation:
+    openAPIV3Schema:
+      properties:
+        spec:
+          required:
+            - replicas
+            - template
+          properties:
+            replicas:
+              type: integer
+              minimum: 0
+            scheduling:
+              type: string
+              enum:
+                - MostAllocated
+                - LeastAllocated
+                - Default
+            template:
+              required:
+                - spec
+              properties:
+                spec:
+                  required:
+                    - template
+                  properties:
+                    template:
+                      type: object
+                      required:
+                        - spec
+                      properties:
+                        spec:
+                          type: object
+                          required:
+                            - containers
+                          properties:
+                            containers:
+                              type: array
+                              minItems: 1
+                              items:
+                                type: object
+                                required:
+                                  - image
+                                properties:
+                                  name:
+                                    type: string
+                                    minLength: 0
+                                    maxLength: 63
+                                    pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+                                  image:
+                                    type: string
+                                    minLength: 1
+                    ports:
+                      type: array
+                      minItems: 1
+                      items:
+                        type: object
+                        properties:
+                          portPolicy:
+                            type: string
+                            enum:
+                              - Dynamic
+                              - Static
+                              - LoadBalancer
+                          protocol:
+                            type: string
+                            enum:
+                              - UDP
+                              - TCP
+                              - TCPUDP
+                          containerPort:
+                            type: integer
+                            minimum: 1
+                            maximum: 65535
+                          containerPortRange:
+                            type: object
+                            properties:
+                              minPort:
+                                type: integer
+                                minimum: 1
+                                maximum: 65535
+                              maxPort:
+                                type: integer
+                                minimum: 1
+                                maximum: 65535
+                          hostPort:
+                            type: integer
+                            minimum: 1
+                            maximum: 65535
+                    scheduling:
+                      type: string
+                      enum:
+                        - Default
+                        - MostAllocated
+                        - LeastAllocated
+  subresources:
+    # status enables the status subresource.
+    status: {}
+    # scale enables the scale subresource.
+    scale:
+      # specReplicasPath defines the JSONPath inside of a custom resource that corresponds to Scale.Spec.Replicas.
+      specReplicasPath: .spec.replicas
+      # statusReplicasPath defines the JSONPath inside of a custom resource that corresponds to Scale.Status.Replicas.
+      statusReplicasPath: .status.replicas
+      # labelSelectorPath defines the JSONPath inside of a custom resource that corresponds to Scale.Status.Selector.
+      labelSelectorPath: .status.selector
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: squads.carrier.ocgi.dev
+spec:
+  group: carrier.ocgi.dev
+  version: v1alpha1
+  scope: Namespaced
+  additionalPrinterColumns:
+    - JSONPath: .spec.scheduling
+      name: Scheduling
+      type: string
+    - JSONPath: .spec.replicas
+      name: Desired
+      type: integer
+    - JSONPath: .status.replicas
+      name: Current
+      type: integer
+    - JSONPath: .status.updatedReplicas
+      name: UP-TO-DATE
+      type: integer
+    - JSONPath: .status.readyReplicas
+      name: Ready
+      type: integer
+    - JSONPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+  names:
+    kind: Squad
+    plural: squads
+    shortNames:
+      - sqd
+    singular: squad
+  validation:
+    openAPIV3Schema:
+      properties:
+        spec:
+          required:
+            - template
+          properties:
+            replicas:
+              type: integer
+              minimum: 0
+            scheduling:
+              type: string
+              enum:
+                - MostAllocated
+                - LeastAllocated
+            strategy:
+              properties:
+                type:
+                  type: string
+                  enum:
+                    - Recreate
+                    - RollingUpdate
+                    - CanaryUpdate
+                    - InplaceUpdate
+            template:
+              required:
+                - spec
+              properties:
+                spec:
+                  required:
+                    - template
+                  properties:
+                    template:
+                      type: object
+                      required:
+                        - spec
+                      properties:
+                        spec:
+                          type: object
+                          required:
+                            - containers
+                          properties:
+                            containers:
+                              type: array
+                              minItems: 1
+                              items:
+                                type: object
+                                required:
+                                  - image
+                                properties:
+                                  name:
+                                    type: string
+                                    minLength: 0
+                                    maxLength: 63
+                                    pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+                                  image:
+                                    type: string
+                                    minLength: 1
+                    ports:
+                      type: array
+                      minItems: 1
+                      items:
+                        type: object
+                        properties:
+                          portPolicy:
+                            type: string
+                            enum:
+                              - Dynamic
+                              - Static
+                              - LoadBalancer
+                          protocol:
+                            type: string
+                            enum:
+                              - UDP
+                              - TCP
+                              - TCPUDP
+                          containerPort:
+                            type: integer
+                            minimum: 1
+                            maximum: 65535
+                          containerPortRange:
+                            type: object
+                            properties:
+                              minPort:
+                                type: integer
+                                minimum: 1
+                                maximum: 65535
+                              maxPort:
+                                type: integer
+                                minimum: 1
+                                maximum: 65535
+                          hostPort:
+                            type: integer
+                            minimum: 1
+                            maximum: 65535
+                    scheduling:
+                      type: string
+                      enum:
+                        - Default
+                        - MostAllocated
+                        - LeastAllocated
+            revisionHistoryLimit:
+              type: integer
+              minimum: 0
+            paused:
+              type: boolean
+  subresources:
+    # status enables the status subresource.
+    status: {}
+    # scale enables the scale subresource.
+    scale:
+      # specReplicasPath defines the JSONPath inside of a custom resource that corresponds to Scale.Spec.Replicas.
+      specReplicasPath: .spec.replicas
+      # statusReplicasPath defines the JSONPath inside of a custom resource that corresponds to Scale.Status.Replicas.
+      statusReplicasPath: .status.replicas
+      # labelSelectorPath defines the JSONPath inside of a custom resource that corresponds to Scale.Status.Selector.
+      labelSelectorPath: .status.selector
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: webhookconfigurations.carrier.ocgi.dev
+spec:
+  group: carrier.ocgi.dev
+  version: v1alpha1
+  scope: Namespaced
+  names:
+    kind: WebhookConfiguration
+    plural: webhookconfigurations
+    shortNames:
+      - wc
+    singular: webhookconfiguration
+  validation:
+    openAPIV3Schema:
+      required:
+        - webhooks
+      properties:
+        webhooks:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required:
+              - type
+              - name
+              - clientConfig
+              - requestPolicy
+            minItems: 1
+            properties:
+              name:
+                type: string
+                minLength: 1
+                maxLength: 128
+              type:
+                type: string
+                enum:
+                  - ReadinessWebhook
+                  - DeletableWebhook
+                  - ConstraintWebhook
+              requestPolicy:
+                type: string
+                enum:
+                  - Once
+                  - Always
+              clientConfig:
+                type: object
+                properties:
+                  url:
+                    type: string
+                  service:
+                    type: object
+                    requeired:
+                      - namespace
+                      - name
+                      - path
+                      - port
+                    properties:
+                      namespace:
+                        type: string
+                        minLength: 1
+                        maxLength: 128
+                        pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+                      name:
+                        type: string
+                        minLength: 1
+                        maxLength: 128
+                        pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+                      path:
+                        type: string
+                      port:
+                        type: integer
+                        minimum: 0
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: carrier
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: carrier
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+      - pods
+      - events
+      - endpoints
+    verbs:
+      - "*"
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - "*"
+  - apiGroups:
+      - carrier.ocgi.dev
+    resources:
+      - "*"
+    verbs:
+      - "*"
+  - apiGroups:
+      - apiextensions.k8s.io
+    resources:
+      - customresourcedefinitions
+    verbs:
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: carrier
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: carrier
+subjects:
+  - kind: ServiceAccount
+    name: carrier
+    namespace: kube-system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: carrier
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: carrier-service
+  template:
+    metadata:
+      labels:
+        app: carrier-service
+    spec:
+      serviceAccountName: carrier
+      containers:
+        - args:
+            - --election-resource-lock=endpoints
+            - --v=5
+          image: ocgi/carrier-controller:latest
+          imagePullPolicy: IfNotPresent
+          name: carrier-controller
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: carrier-webhook
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: carrier-webhook
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - serviceaccounts
+      - events
+    verbs:
+      - list
+      - watch
+      - get
+      - create
+      - patch
+  - apiGroups:
+      - "rbac.authorization.k8s.io"
+    resources:
+      - clusterroles
+      - rolebindings
+    verbs:
+      - list
+      - watch
+      - get
+      - create
+  - apiGroups:
+      - "carrier.ocgi.dev"
+    resources:
+      - "*"
+    verbs:
+      - "*"
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: carrier-webhook
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: carrier-webhook
+subjects:
+  - kind: ServiceAccount
+    name: carrier-webhook
+    namespace: kube-system
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: carrier-webhook-service
+  namespace: kube-system
+  labels:
+    app: carrier-webhook
+spec:
+  selector:
+    app: carrier-webhook
+  type: ClusterIP
+  ports:
+    - port: 443
+      targetPort: 443
+      protocol: TCP
+---
+apiVersion: v1
+data:
+  cert.pem: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURiekNDQWxlZ0F3SUJBZ0lKQU9HTmdhemNxZitBTUEwR0NTcUdTSWIzRFFFQkN3VUFNQlV4RXpBUkJnTlYKQkFNTUNuZGxZbWh2YjJ0ZlkyRXdJQmNOTWpFd01qSTJNRFkwTWpRMVdoZ1BNakk1TkRFeU1USXdOalF5TkRWYQpNREl4TURBdUJnTlZCQU1NSjJOaGNuSnBaWEl0ZDJWaWFHOXZheTF6WlhKMmFXTmxMbXQxWW1VdGMzbHpkR1Z0CkxuTjJZekNDQVNJd0RRWUpLb1pJaHZjTkFRRUJCUUFEZ2dFUEFEQ0NBUW9DZ2dFQkFOY09lN2M0MCtDTTlTMFkKYlV4T3dIWDMyZmxHVU51WUhIRnRld2pyTUsrQUtPL21ibjNQNGJ4dGVQSVMwS0cva21FY0w0RGFXVFJkN0dITwpHS1BXbisrQW5uOGRCZFpubmo2NmIvdGFOZnNsc1JBVUo0WHFRNnA2S0JDK3FReTNiSTY0bTBrdzI2MUdHbk9XCnZyMGhyZWVmNjU4UmhyMnZHdGNmK0VsNEVFTEFhY0lpZFZLaERteEFwZGo4VlFjQlA1OFZzSW5FTzJSTGtPdkkKcG8ybWxGU3NyMlZMTEp2K0p3RzlvNk5QbVZQRmRMU2NNUWl4VXI2M3R2RFNuQmpaZnhnWU1XMUVqY0s4R2t1ZApXL3FFRFhVZFdOL3NaZ3NPZ1VxUitjWHpIbWtsU3NxNmF1amROdjE2VURsK2pTQkJETENoSWhGN3ljRC93dU1YCnQwVWQ0Tk1DQXdFQUFhT0JvakNCbnpBSkJnTlZIUk1FQWpBQU1Bc0dBMVVkRHdRRUF3SUY0REFUQmdOVkhTVUUKRERBS0JnZ3JCZ0VGQlFjREFUQndCZ05WSFJFRWFUQm5naGRqWVhKeWFXVnlMWGRsWW1odmIyc3RjMlZ5ZG1sagpaWUlqWTJGeWNtbGxjaTEzWldKb2IyOXJMWE5sY25acFkyVXVhM1ZpWlMxemVYTjBaVzJDSjJOaGNuSnBaWEl0CmQyVmlhRzl2YXkxelpYSjJhV05sTG10MVltVXRjM2x6ZEdWdExuTjJZekFOQmdrcWhraUc5dzBCQVFzRkFBT0MKQVFFQU53WG5IQzlMdnhNMXZlRUl0SDVhSUxxd0gxamdWdnZuL25zSjVpNzZDdDFRVW9yZ2h3V2xJY2tWeWw0bApSTkoyN2FhSzExMDdKUUU4Q25pc0hlVzMyV3oyM2VpQTBHS1J5SEsvWjhuSzQvMURiRFNOcGZKdHlCK0NEaVBaCmJyb3dyblNSZHhXcHhwTE9vR05BRmkwQ0s1dHRwSml5NEFabXR4VnhROENQQkhuUFlKdENhYit2WEhzUkJualMKVi83ekQwaCtLVFVUZHBiazc1V1NwdnVkTjdHdFFhVmk2TkEvZHU1eHRYNC9Ka0tzUWM5bjhMTGk0ekdDWjM3RAo2dFZMQ2laeFpZWldUVkdibkZhSnpiRnJsRXdaYUtjWHBEV09HQ1JSVjNLMjF1L3UvejlSS09PV3NqdFYyS3YzCjRZd3l3ZEphSGhoRVlaaWhyWkZGYnVPSXpRPT0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
+  key.pem: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFcEFJQkFBS0NBUUVBMXc1N3R6alQ0SXoxTFJodFRFN0FkZmZaK1VaUTI1Z2NjVzE3Q09zd3I0QW83K1p1CmZjL2h2RzE0OGhMUW9iK1NZUnd2Z05wWk5GM3NZYzRZbzlhZjc0Q2VmeDBGMW1lZVBycHYrMW8xK3lXeEVCUW4KaGVwRHFub29FTDZwRExkc2pyaWJTVERiclVZYWM1YSt2U0d0NTUvcm54R0d2YThhMXgvNFNYZ1FRc0Jwd2lKMQpVcUVPYkVDbDJQeFZCd0UvbnhXd2ljUTdaRXVRNjhpbWphYVVWS3l2WlVzc20vNG5BYjJqbzArWlU4VjB0Snd4CkNMRlN2cmUyOE5LY0dObC9HQmd4YlVTTndyd2FTNTFiK29RTmRSMVkzK3htQ3c2QlNwSDV4Zk1lYVNWS3lycHEKNk4wMi9YcFFPWDZOSUVFTXNLRWlFWHZKd1AvQzR4ZTNSUjNnMHdJREFRQUJBb0lCQUh3ZnplUW9scEhxaWJBbgpneDRoN2crb3FGU3A4dzFydEM3N282RzRMWGQrSHlLbisybitUQ24zZlhFcXp1UXNzQTRBdUtKRVpHeEhNYUlaCjFEcnNLNCtPeXV4UEVnbDM4T3YvcTVhRnNOWnVJTTVJODY3bFVYeloyTG9oY1d6M2lWNnV5bUhxSTBEVlQzc2IKcktkNUF1akhjclZ5NWpRaEZ2ckhad1R3bVdJTW9aYmVqalc5V3JKRlB4WjlLQ29QdXdYZTZ0Zk5yUm5LdFFRVgpjTmlXTFVBMUIvTEcyTVFKa2RxTGZ2MDhqc3lmYUtUY2lNSG9zK1hFWkhiRWIzdzNid2wxYVpVMEZMU0RKOFl1CkRRVVV0VHdDZUowTXQ1Mjd1K2NIZHlvRHgxeE01VkRFdnV1SmtoT1BBYWlEdWpnenFmcHBGaXh2UDFMTUJicDMKckFheU01RUNnWUVBN3hhUFgveUovT1JheFhnTmMreTlKVHFGb3RudmF5dmJDVjBiMWZvZ3NBQmM3V0xEUC8xQwo1UXg3UFM2SHd5UmxKMG5ITFZIeFQ1VjBvc1ZQSlpVeVhDREJobUQzb05jNDNHbC81cnJkd2hySzhjYzdGNDltClJ2SWYwSTlwR1o2VnR5QUlvUksvUzNwQnZHMnplKzFGTjI5Ym1zQ3lHdE1tbk9OUkdRbjBuSThDZ1lFQTVrVEIKdE5hckYyOVlPdWd1Q0VROXB4eStMWnpTM3lQdk1OZXU3djJmUmJxNGNRM3NMNkVPcmIzanJrajBoL3RHcUVSUQpyY3pOcE9IUm53MHplcC9zTTFvUWk5OEtIVEthV0YwUGlRUStUNjNyamZYcEZTRWZHYjhYVmR0d0Q4RXR6RHdOCnRoS0phTWNLZDNTa0tTVHJ3OVdGUUNKLzhWSTdyenZnMVZVUklYMENnWUI3WFpDdFhvbDB5LzlxVlAvY0NST3YKMmZxS2hSbGNtMHh5RUhFRWdBUE56T0ltT3dlMFJPSDNmZkU1S0lFMDE5cTU0dis3Q3NVUTQzVkRaN3ZuRUl6agpyS011eTJuNnZCTEM2RXp1cVEwejBzOVU0aEJEbitLT1NQRFJsSzRPWWgydVdBRWIyNmlKTVpRcHZoRVdxTjlHCk0xZDVDbVRjSW9lUi9Ga2tLbGJsVVFLQmdRQ1NLdmtQRXVsZUllYk8xYzFLb0E3R3dwOFNFeWRrVDhvb3BmQzgKY2pBbE1pYWNWU3NrL01aMWtVRXl3OHE5ZXNyYVN5c3ZkLzdkK0I1NUtRY1JndXlMbUZOQ2hsMUVOWGYyT1hTQQpGRHA5bDdnYjBBcVp5QUdXOVU4WnlBYTFhWG5wMkFFWUgySXNLWlRDU1Q5ZmdybEtBWUxwT0QwZzhZTkRjKzMvClhWVlhmUUtCZ1FDK2EvQklqZ1JtOHlRZ3pxcWxaTnpZZ3Rpd2hyaDFoSENZT0RrckRRcXZISkNaa3Z3UHBZWlcKMjNyVDQ1MkJKc1MwVExrMmtZMkRoUEhuWmRwWnZtMm1YNlhqc3ptdTRHZWtOTjh6VDhDY1gvMXFrbGo4eEdKRwpwalBtMXF2YnZVa0dqR3Zzb2JRL0JTOW1ZTW9iVENuNjFIaUJFdE1KM2hXR1VOcmppMVBFdWc9PQotLS0tLUVORCBSU0EgUFJJVkFURSBLRVktLS0tLQo=
+kind: Secret
+metadata:
+  name: carrier-wbssecret
+  namespace: kube-system
+type: Opaque
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: carrier-webhook
+  namespace: kube-system
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: carrier-webhook
+  template:
+    metadata:
+      labels:
+        app: carrier-webhook
+    spec:
+      serviceAccountName: carrier-webhook
+      containers:
+        - args:
+            - --tlscert=/root/cert.pem
+            - --tlskey=/root/key.pem
+            - --v=4
+            - --port=443
+            - --sidecar-image=ocgi/carrier-sdkserver:latest
+          image: ocgi/carrier-webhook:latest
+          imagePullPolicy: Always
+          name: webhook
+          ports:
+            - containerPort: 443
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /root
+              name: wbssecret
+      volumes:
+        - name: wbssecret
+          secret:
+            secretName: carrier-wbssecret
+            items:
+              - key: key.pem
+                path: key.pem
+              - key: cert.pem
+                path: cert.pem
+---
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: carrier-mutator
+webhooks:
+  - admissionReviewVersions:
+      - v1beta1
+    clientConfig:
+      caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUMvekNDQWVlZ0F3SUJBZ0lKQUx5YlU2UVZIeFN5TUEwR0NTcUdTSWIzRFFFQkN3VUFNQlV4RXpBUkJnTlYKQkFNTUNuZGxZbWh2YjJ0ZlkyRXdJQmNOTWpFd01qSTJNRFkwTWpRMVdoZ1BNakk1TkRFeU1USXdOalF5TkRWYQpNQlV4RXpBUkJnTlZCQU1NQ25kbFltaHZiMnRmWTJFd2dnRWlNQTBHQ1NxR1NJYjNEUUVCQVFVQUE0SUJEd0F3CmdnRUtBb0lCQVFEQVdRbG5QMWhIMGd0Qmg4dGtvSE1jblV2SFVqWFRoRWVxRVd5c290N2RUM3YrZVQ0dmhVRmEKdldRK1pBWm9PSDFYeTBnZk03dkQvbzNDbkZMcXUxRmxWem5kYVdwaStnUndtWDJnNUs3bzYxWFFEY1lkYk5qYwpnT3FqSGxWdzBLaTdsOWtaQnExbEo2ZUEyd29XQWFaMG9ROTFyY0lhbUJSRnE3di8xNEFNQnFtWkkwMWN6V2NjCjAzbWxsd2JCMnh6dktCbkNlUHNXVmZpdTZqK0MrbWp1K3NCRjQxN1BqZ1lDekVEbUw4Y1AwRHFZN3Y2NTFZNjcKWjhkNTBjbTJKdmthSWZRTEpiSnQva211ZjMxVXZOWkhaNE1NUC96dUd6UXlmWWtDaXFkYk5mWVZUbnphUWRjUgoxcStUaTRKUkpuUTNFcVJBRnRHSzlsUHVCMkh5K3RWREFnTUJBQUdqVURCT01CMEdBMVVkRGdRV0JCVG9mblA0ClplQjlyM09xWUdTMnRjNWlvZjM4T3pBZkJnTlZIU01FR0RBV2dCVG9mblA0WmVCOXIzT3FZR1MydGM1aW9mMzgKT3pBTUJnTlZIUk1FQlRBREFRSC9NQTBHQ1NxR1NJYjNEUUVCQ3dVQUE0SUJBUUNyT21EVVlDWDczbFY3YXhTbQprZ2xaeHlNWGh1MXIzekhvMk4zK1JyR1dwWWp0UHZBVWlWN2RQNUdyQTdzTWQyRmp3SEtsb2lSVUVRSzYrazNWCjluc1FtY1NZdmxaazhtRFdBdWxuaHI2aDdhS0tRTmlXZEp4Tzd6ODlvcTYrczVUZDdCNmRuYkdYelNMRE53WFoKQmVKcnJqM2hBVEVwS1BxeXhRQkhrcWhHb3hxNkR2Z08xRUVJMTlvNUpGU0J3K3pYYTRsRmpVcSttbzJ2Uk1vYwpweUNydjRqZHEyNDMwcHNjSDRCb1RPcXBQek9tWUNZTExvb1dmTkdWSWRUS1hSc1RIRXlFNjUzbXNSeHdVVGhtClBCenYxTDdlTlpsaHRybjNTUUVNTWxUUkdrdWgxMzFJWXNOaTRBemJLRVIybHhCdGtzOTJFcGswZ2ZNa0llUU4KWTVRVAotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+      service:
+        namespace: kube-system
+        name: carrier-webhook-service
+        path: /mutate
+    failurePolicy: Ignore
+    name: carrier-webhook.ocgi.dev
+    namespaceSelector:
+      matchExpressions:
+        - key: ns
+          operator: NotIn
+          values:
+            - kube-system
+    rules:
+      - apiGroups:
+          - "carrier.ocgi.dev"
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - '*'
+        scope: '*'
+      - apiGroups:
+          - ""
+        apiVersions:
+          - v1
+        operations:
+          - CREATE
+        resources:
+          - 'pods'
+        scope: '*'
+    sideEffects: None
+    timeoutSeconds: 10
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: generalpodautoscalers.autoscaling.ocgi.dev
+spec:
+  additionalPrinterColumns:
+    - JSONPath: .spec.minReplicas
+      name: MinReplicas
+      type: integer
+    - JSONPath: .spec.maxReplicas
+      name: MaxReplicas
+      type: integer
+    - JSONPath: .status.desiredReplicas
+      name: Desired
+      type: integer
+    - JSONPath: .status.currentReplicas
+      name: Current
+      type: integer
+    - JSONPath: .spec.scaleTargetRef.kind
+      name: TargetKind
+      type: string
+    - JSONPath: .spec.scaleTargetRef.name
+      name: TargetName
+      type: string
+  group: autoscaling.ocgi.dev
+  names:
+    kind: GeneralPodAutoscaler
+    listKind: GeneralPodAutoscalerList
+    plural: generalpodautoscalers
+    shortNames:
+      - pa
+      - gpa
+    singular: generalpodautoscaler
+  scope: Namespaced
+  subresources:
+    status: {}
+  version: v1alpha1
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gpa
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: gpa
+rules:
+  - apiGroups:
+      - autoscaling.ocgi.dev
+    resources:
+      - generalpodautoscalers
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - autoscaling.ocgi.dev
+    resources:
+      - generalpodautoscalers/status
+    verbs:
+      - update
+  - apiGroups:
+      - '*'
+    resources:
+      - '*/scale'
+    verbs:
+      - get
+      - update
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resourceNames:
+      - 'http:heapster:'
+      - 'https:heapster:'
+    resources:
+      - services/proxy
+    verbs:
+      - get
+  - apiGroups:
+      - metrics.k8s.io
+    resources:
+      - pods
+    verbs:
+      - list
+  - apiGroups:
+      - custom.metrics.k8s.io
+    resources:
+      - '*'
+    verbs:
+      - get
+      - list
+  - apiGroups:
+      - external.metrics.k8s.io
+    resources:
+      - '*'
+    verbs:
+      - get
+      - list
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+      - update
+  - apiGroups:
+      - ""
+    resources:
+      - endpoints
+    verbs:
+      - "*"
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - "*"
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: gpa
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: gpa
+subjects:
+  - kind: ServiceAccount
+    name: gpa
+    namespace: kube-system
+---
+apiVersion: v1
+data:
+  cert.pem: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURTVENDQWpHZ0F3SUJBZ0lKQU1wdmNlV1JTeFlxTUEwR0NTcUdTSWIzRFFFQkN3VUFNQmN4RlRBVEJnTlYKQkFNTURIWmhiR2xrWVhSdmNsOWpZVEFnRncweU1UQTFNVFV4TXpNNE5EWmFHQTh5TWprMU1ESXlPREV6TXpnMApObG93S0RFbU1DUUdBMVVFQXd3ZFozQmhMWFpoYkdsa1lYUnZjaTVyZFdKbExYTjVjM1JsYlM1emRtTXdnZ0VpCk1BMEdDU3FHU0liM0RRRUJBUVVBQTRJQkR3QXdnZ0VLQW9JQkFRQzloSG9ZRU1GbUFpNDhaalZuRHQvaG9xbnMKUXpTZEc3VUZoWk0wcmlneVRwSWVoU21PdUJKUHgvMXY2cjQwVXhqTTB3L1dQL2kzN1hRL3g3TDJSQkNaSGZwMwpOZHJ1alZaZkx3b2ZoZU80eG5BU2tHSlhFSGtWNllmakdRNUoxMHRSZVBsWjdKazBCelcwSTF1UnVEZERoNDAwClVvbUhvSThBVDFQOXI3a0I5dDBpaHdHMVZxNnVmdFRJUFNwandjNWtWMnRMT2VDLzR5eUQ5VjZwKytQMFVycWsKOFhLVE9mSUFzY3FFSjhSNWY1a1lhQVozTG0vem5wSk9ZYThNVDQ0T2twRTB5bnJvMDNLeXJhNGl2YTdKdy9FMQozZGtBL2s0YWZnTFYzNGNUdWhjRHhucmNpQUI4WCtNV2xGZW14MDlzeG9PR3dXaDJmZVpxTEY3bS9GbExBZ01CCkFBR2pnWVF3Z1lFd0NRWURWUjBUQkFJd0FEQUxCZ05WSFE4RUJBTUNCZUF3RXdZRFZSMGxCQXd3Q2dZSUt3WUIKQlFVSEF3RXdVZ1lEVlIwUkJFc3dTWUlOWjNCaExYWmhiR2xrWVhSdmNvSVpaM0JoTFhaaGJHbGtZWFJ2Y2k1cgpkV0psTFhONWMzUmxiWUlkWjNCaExYWmhiR2xrWVhSdmNpNXJkV0psTFhONWMzUmxiUzV6ZG1Nd0RRWUpLb1pJCmh2Y05BUUVMQlFBRGdnRUJBSWN3T1A3MGx1Tjh3cW92K0NCdEt6ZmRPbkp1bStqSGpFNFIzSlljMVdQWkpKWG4KTWhsZFFIOStWNmNlblJrNWYzOHhSL2ZEdXhTODBqNUdzSzFhWUs5cU5NNGJhSUNYa1FQaVZ6WWd0NitOaWNMYQp3eWJuS0tNS0JncXhzeGZlMDdObTY2cFFRV2xxSlV4TEhSNWJ0WFpTVkk0amg5cjBjTmpBdDFVRXZNUGs3ZW9tCkIyQy9OSVIwaWVIVTMwaTZoU0ZhZW01NHp2NVVSVDNMeklNSHI3QTRwSi80SVVxRVlpWmJlSnEwdHZZaEVIR3QKTVFIcjdLYWZnUWhQd3hnSEFpUW95aEtybURxWUJyWWphWHNxUjNpaklrR1N5WVBiSXNVUnVkdjBHai9tQXRybApyVDNoSytGWjI5K0MvbDgrbTdVTEZ0VWdvMjFZUjNWMDlRWnRVYW89Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
+  key.pem: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFcEFJQkFBS0NBUUVBdllSNkdCREJaZ0l1UEdZMVp3N2Y0YUtwN0VNMG5SdTFCWVdUTks0b01rNlNIb1VwCmpyZ1NUOGY5YitxK05GTVl6Tk1QMWovNHQrMTBQOGV5OWtRUW1SMzZkelhhN28xV1h5OEtINFhqdU1ad0VwQmkKVnhCNUZlbUg0eGtPU2RkTFVYajVXZXlaTkFjMXRDTmJrYmczUTRlTk5GS0poNkNQQUU5VC9hKzVBZmJkSW9jQgp0VmF1cm43VXlEMHFZOEhPWkZkclN6bmd2K01zZy9WZXFmdmo5Rks2cFBGeWt6bnlBTEhLaENmRWVYK1pHR2dHCmR5NXY4NTZTVG1HdkRFK09EcEtSTk1wNjZOTnlzcTJ1SXIydXljUHhOZDNaQVA1T0duNEMxZCtIRTdvWEE4WjYKM0lnQWZGL2pGcFJYcHNkUGJNYURoc0ZvZG4zbWFpeGU1dnhaU3dJREFRQUJBb0lCQURvcU9KYStQYjBqR2pHcgpaT1IyYWp3RUFvYmlzWGt1a2NaYUVxM3ViYVBTL1lHa2VQYTJnOWc4bHdvTVQ4Z2JZTmNzU0FZSHFEdzdBcHk0Cm03SjlmV0toRXNnWG5WUHR5UDU1bjIvQlZmelYybnU0R0phRUZjV2w0UERRTmRSdjRVdm1CeEdVVGdqcjFZMnQKOUdLcTJUcytsUlhqNXhYYkwwaDNFRjRoMm5SQldpZmh2akRkMXdWY3FYQXZkakJSeUxhQmZMZVRrZWlxTVkzegpwWlRYMEpMNGFVMzQ4UmExaGRXMy93b21PSEVRbENkYVdIempQVUVXa2dWa0IxS1BnWHVDbExqcEdDMFY2MzI1Cmd2RVk5UzYwb2ZtK29hRWdTaURtSGdUMXcyRk43ZC9weVhvOTRYcHdGaG9wZk45VWRPaENsNjhVNG8zYTltdm0KZWRjdHNKRUNnWUVBOFE0c0JablF4UHVMYmdwOFZJaFhNWGRTaHJNOVNUOUo1dG15NVlUQk9rc2sxYllqYXpQYwpGRGY5ZmFXbDNMeCttczVjZXVoZ2dveThMMWxnMzdxVWVJbGdDeVdFNkcxQm53d2pybUo5L1lCLzZCaTNrZVlFCnljR1VJbXBtQ1BCOE50MUpXTHEzK0xSV0lkWnB6aDY4Z2pkZmhDSllwUVdwcFdkN3FjUk5MbmNDZ1lFQXlVUlcKMWJBMGJ1T21hbDdZamZtb1FHdEYzUjh6RW1WSXgrcCtHRFQzek5SZEhCQXkwUlRuUFZOdmlYTXk3OFFFTmVpNQpnWW5SbDA4cG51ZGlXQTQydmxNR1ljUjJUZlN1MEFQWUQ0ejc0SWpueDBIWkI3TkZ2UXUwcWdqUWFybzVPbEJLClFiaWtIODZJM3F4aFZCZFdIcUUxMGNmN1NWbCtQUURMa05kWC9NMENnWUJ2a2N5a1J2NE92aEpadXpheWRXeE4KODlsWmlRbzdwYlJSeWI3NFprcDg3Wnk5NFpCaEpONmU2UTlGb1c2MFRQWVlOcDB0TWZMQldkd2IyalZ4TjgxUwpRTnNZTGFSblkzSTA2QXgzd1JScFNabHAxazdZazJyeDZzdmlaZmFWK3FDelVCYUxuOWhZbnpjaWNEZ0djOGx5ClI2akk0cEMreUhFdG9ramxXWHNUbndLQmdRQ3FMY1NXanBUbkprb3lLdHhFdjlKS0ZlcE8yL0NkSDFMNDV3ZVQKaEVYNnhaMnMrdTFjNktYVnJ0VGlqYXVHSEdITEMycS9Zejc3QjQ2VHMrWHR1cWNES3NSOHFsZTE5cXhSYXM2bgo1M2VhRldpVmpOSHJ0dVBDdzBFUmZMNXRYK1MvcjkvNXpodklZU1JOMDhmQUNMTmkxc0RoRG8wbEtpeVpmRENqCjJkR21DUUtCZ1FDTk83ZDJkdWhVUzRtL1gxNWdkcFU5TlpwZXB1bzZtNGFRR0NIUnVnL01vKzdIVDA1NWVTR0MKUUswRFJpOCt1YkFQSXBQMlFOMU9WSkI1MEZSL1R5RTF3cldzRXZ0dHBaVFpIaWNDMnJUZVpsWWJUWGxtUEF5dwpOclJYUTFLKzNFNkVJV1BEWDVxZVlLcjFKM1pWMm5xSXFQRU9pSE9oREtWSHF4REhzbjEwenc9PQotLS0tLUVORCBSU0EgUFJJVkFURSBLRVktLS0tLQo=
+kind: Secret
+metadata:
+  name: gpa-secret
+  namespace: kube-system
+type: Opaque
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gpa
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gpa-service
+  template:
+    metadata:
+      labels:
+        app: gpa-service
+    spec:
+      serviceAccountName: gpa
+      containers:
+        - args:
+            - --tlscert=/root/cert.pem
+            - --tlskey=/root/key.pem
+            - --v=6
+            - --port=443
+          image: ocgi/gpa:latest
+          imagePullPolicy: Always
+          name: gpa
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - mountPath: /root
+              name: gpasecret
+      volumes:
+        - name: gpasecret
+          secret:
+            secretName: gpa-secret
+            items:
+              - key: key.pem
+                path: key.pem
+              - key: cert.pem
+                path: cert.pem
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gpa-validator
+  namespace: kube-system
+spec:
+  selector:
+    app: gpa-service
+  ports:
+    - port: 443
+      targetPort: 443
+---
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: gpa-validator
+webhooks:
+  - admissionReviewVersions:
+      - v1beta1
+    clientConfig:
+      caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURBekNDQWV1Z0F3SUJBZ0lKQU15M2dxY05QNmo4TUEwR0NTcUdTSWIzRFFFQkN3VUFNQmN4RlRBVEJnTlYKQkFNTURIWmhiR2xrWVhSdmNsOWpZVEFnRncweU1UQTFNVFV4TXpNNE5EWmFHQTh5TWprMU1ESXlPREV6TXpnMApObG93RnpFVk1CTUdBMVVFQXd3TWRtRnNhV1JoZEc5eVgyTmhNSUlCSWpBTkJna3Foa2lHOXcwQkFRRUZBQU9DCkFROEFNSUlCQ2dLQ0FRRUFxdm91RGppWFFKc3V6VUk4VlBHQUlYQXl0YXhMeGlLQVpzQVE2SUx1dlRwTUNnaTAKWTQwdktGcGdBU29zTTBYQUg4VWlHeWRXYldQd21uMi9qc2tKMjk5VGhPdnN4VzBHYU1BNHpqd3NHNUU3ZUZyUQp0RGlWZVd5S1k0MWV0YVpFRWpPNjB5TVdTTTNjL2hyeDJkdm4yblZ3WGJ5c3FXV1ZxYjgvM2NkRU5OTTVmUXNRClp0WEQyNG1qQUMya2d2MjVVSHNranNoampoQ3NDeXlIWVRqNGl2dkZFUG9hSTN6M2ZKSng2NmgyazB4WXhGQUwKc0VkU1ptRFJBZHNheTBacExEbjZ1ZU42NzVIR0dxMGx2SmVRRGR6Y2l2RnNYM25pL3owU1ExdW5MWDMvMWl6bApWOWNXaXlOOHlXb1BjbUQyejVHUjJKMnpoL28vTzNaaFNsNXQwUUlEQVFBQm8xQXdUakFkQmdOVkhRNEVGZ1FVCjZZemhjR0U5dkZJN0FyaHdDTUNaQXMydFBFOHdId1lEVlIwakJCZ3dGb0FVNll6aGNHRTl2Rkk3QXJod0NNQ1oKQXMydFBFOHdEQVlEVlIwVEJBVXdBd0VCL3pBTkJna3Foa2lHOXcwQkFRc0ZBQU9DQVFFQWxPd2RHL0ZGbmN0UwpyWUhVWnhyZUV4Nm1BakdxRW9ZaE92WUpySU5Ec29qRzZsL2Z5cnRmOG5POXhEb2J0K0x1eW5rdFp0WVlqQ1F4CjJDV0VvbDIvN1dyczRjUEpXV0NQQUp6NGNyYjRVclNGWDhUTmJWZllVWDYxNHMrVUtEZDcvZmhQa0toVUFpaGwKeFQ3K3hJU3QyQi9MbnYwbGRNV0RzTlcwSTNYUFFqZURnM2lFSGVONjQxbnNmTjVtR1dRblc2RDJaek9lL3dmVgpVSzRVS3ZlSFFsVlNjZjFSbzVSOFQ1TkMwQVNMUW1DSUVDT2JSaDFBSjA0Y3l0MGdhYU5CNUNQaHlXVDdoTE9SCmxhVEdsWnVTOGt2WVd5ZTM1UEM2N3Z0RWRYRXowcExSdTNpVHBoMEkrbGZucWRPVDZkQjBRa0VyT1ZlNFZ2UHYKaTF4SGVXa1dzQT09Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
+      service:
+        namespace: kube-system
+        name: gpa-validator
+        path: /mutate
+    failurePolicy: Ignore
+    name: gpa-validator.autoscaling.ocgi.dev
+    namespaceSelector:
+      matchExpressions:
+        - key: ns
+          operator: NotIn
+          values:
+            - kube-system
+    rules:
+      - apiGroups:
+          - "autoscaling.ocgi.dev"
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - '*'
+        scope: '*'
+    sideEffects: None
+    timeoutSeconds: 10
